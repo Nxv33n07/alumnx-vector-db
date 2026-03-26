@@ -41,7 +41,7 @@ def _chunk_page_text(chunker, page_number: int, text: str) -> list[tuple[int, st
     return [(page_number, chunk) for chunk in chunks]
 
 
-def ingest_pdf(
+def ingest_file(
     file_name: str,
     file_path: str,
     kb_name: str | None,

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import numpy as np
 
 # Core services to mock and use
-from app.services.ingestion import ingest_pdf
+from app.services.ingestion import ingest_file as ingest_pdf
 from app.models import IngestResponse
 
 class MockEmbedder:
