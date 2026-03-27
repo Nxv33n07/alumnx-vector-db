@@ -2,9 +2,9 @@
 set -e
 
 # Arguments
-BRANCH=${1:-dev}
-PORT=${2:-8001}
-APP_NAME=${3:-alumnx-vector-db-dev}
+BRANCH="${1:-dev}"
+PORT="${2:-8001}"
+APP_NAME="${3:-alumnx-vector-db-dev}"
 REPO_DIR="/home/ubuntu/$APP_NAME"
 
 echo "Deploying $APP_NAME (Branch: $BRANCH) on Port: $PORT..."
@@ -18,39 +18,28 @@ fi
 # Navigate to repo
 cd "$REPO_DIR"
 
-# Pull latest changes
+# Discard any local changes so checkout never fails
 git fetch origin
 git checkout "$BRANCH"
-git pull origin "$BRANCH"
+git reset --hard "origin/$BRANCH"
+git clean -fd
 
-# Standardize environment
-if [ ! -d "venv" ]; then
-    python3 -m venv venv
-fi
-
-# Install dependencies (using uv if available, otherwise pip)
+# Install dependencies
 if command -v uv > /dev/null; then
-    uv sync
+    uv sync --frozen
 else
+    python3 -m venv venv
     ./venv/bin/pip install -r requirements.txt
 fi
 
-# Migrate from PM2 to Docker if necessary
+# Reload or start with PM2
 if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
-    echo "Stopping and deleting PM2 process $APP_NAME for Docker migration..."
-    pm2 delete "$APP_NAME"
-    pm2 save
+    echo "Reloading $APP_NAME..."
+    pm2 reload "$APP_NAME"
+else
+    echo "Starting $APP_NAME for the first time..."
+    pm2 start "uv run uvicorn main:app --host 0.0.0.0 --port $PORT" --name "$APP_NAME"
 fi
 
-# Deploy using Docker Compose
-export HOST_PORT="$PORT"
-export CONTAINER_NAME="$APP_NAME"
-
-echo "Running Docker Compose up for $APP_NAME on port $HOST_PORT..."
-docker compose up -d --build
-
-# Cleanup old images to save space
-echo "Cleaning up dangling images..."
-docker image prune -f
-
-echo "Deployment of $APP_NAME via Docker completed successfully!"
+pm2 save
+echo "Deployment completed successfully!"
